@@ -1,10 +1,11 @@
 import datetime
+import urllib.request
 
-from django.test import TestCase
+from django.test import TestCase, SimpleTestCase, TransactionTestCase, LiveServerTestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Question
+from .models import Question, Choice
 
 
 def create_question(question_text, days):
@@ -124,3 +125,48 @@ class QuestionDetailViewTests(TestCase):
         url = reverse("polls:detail", args=(past_question.id,))
         response = self.client.get(url)
         self.assertContains(response, past_question.question_text)
+
+
+# SimpleTestCase - no database needed, just testing URLs
+class SimpleURLTests(SimpleTestCase):
+    def test_polls_index_url_is_correct(self):
+        """
+        just checking the polls url is /polls/
+        """
+        url = reverse("polls:index")
+        self.assertEqual(url, "/polls/")
+
+
+# TransactionTestCase - tests that actually write to the database
+class QuestionAndChoiceTests(TransactionTestCase):
+    def test_create_question_with_choices(self):
+        """
+        created a question with 2 choices, count should be 2
+        """
+        question = Question.objects.create(
+            question_text="What is your favourite color?",
+            pub_date=timezone.now(),
+        )
+        Choice.objects.create(question=question, choice_text="Red", votes=0)
+        Choice.objects.create(question=question, choice_text="Blue", votes=0)
+        self.assertEqual(question.choice_set.count(), 2)
+
+
+# LiveServerTestCase - starts a real server and we make a real HTTP request to it
+class LiveServerIndexTest(LiveServerTestCase):
+    def test_index_page_loads(self):
+        """
+        just checking the page loads without errors
+        """
+        url = self.live_server_url + "/polls/"
+        response = urllib.request.urlopen(url)
+        self.assertEqual(response.status, 200)
+
+
+class QuestionStrTest(TestCase):
+    def test_question_str(self):
+        """
+        str() of a question should return its text
+        """
+        question = Question(question_text="What is your name?", pub_date=timezone.now())
+        self.assertEqual(str(question), "What is your name?")
